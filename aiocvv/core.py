@@ -1,0 +1,3 @@
+CLIENT_USER_AGENT = r"CVVS/std/4.1.7 Android/10"
+CLIENT_DEV_APIKEY = r"Tg1NWEwNGIgIC0K"
+CLIENT_CONTENT_TP = r"application/json"
