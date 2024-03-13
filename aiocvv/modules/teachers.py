@@ -2,5 +2,6 @@
 
 from .core import TSCommonModule
 
+
 class TeachersModule(TSCommonModule):
     endpoint = "teachers"

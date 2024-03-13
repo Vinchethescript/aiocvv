@@ -1,13 +1,29 @@
+import os
+import re
 from setuptools import setup, find_packages
+
+packages = find_packages()
+
+with open("README.md", "r") as f:
+    long_desc = f.read()
+
+with open(
+    os.path.join(os.path.dirname(__file__), packages[0], "__init__.py"), "r"
+) as f:
+    kwargs = {
+        var.strip("_"): val
+        for var, val in re.findall(
+            r'^(__\w+__)\s*=\s*[\'"]([^\'"]*)[\'"]', f.read(), re.MULTILINE
+        )
+    }
+    kwargs["author_email"] = kwargs.pop("email", "")
 
 setup(
     name="aiocvv",
-    version="0.0.1",
-    description="An asynchronous client for Classeviva written in Python.",
-    url="https://github.com/Vinchethescript/aiocvv",
-    author="Vinche.zsh",
-    author_email="vinchethescript@gmail.com",
-    packages=find_packages(),
+    long_description=long_desc,
+    long_description_content_type="text/markdown",
+    packages=packages,
     install_requires=["aiohttp", "appdirs", "bcrypt"],
     python_requires=">=3.7",
+    **kwargs
 )

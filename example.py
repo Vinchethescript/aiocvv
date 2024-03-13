@@ -20,18 +20,23 @@ async def main():
             if event.type == AbsenceCode.absence:
                 print("You were absent!", end="")
             elif event.type == AbsenceCode.delay:
-                print(f"You arrived late! You entered at position {event.position}.", end="")
+                print(
+                    f"You arrived late! You entered at position {event.position}.",
+                    end="",
+                )
             elif event.type == AbsenceCode.short_delay:
                 print("You had a small delay.", end="")
             elif event.type == AbsenceCode.exit:
                 print(f"You left early! You left at position {event.position}.", end="")
-            
+
             print(" This was justified." if event.justified else "")
-        
+
         if day.lessons:
             print("\nLessons:")
             for lesson in day.lessons:
-                print(f"\t- {lesson.subject.description} at {lesson.position} hour for {lesson.duration} hour{'s' if lesson.duration != 1 else ''}")
+                print(
+                    f"\t- {lesson.subject.description} at {lesson.position} hour for {lesson.duration} hour{'s' if lesson.duration != 1 else ''}"
+                )
 
         if day.agenda:
             print("\nAgenda:")
@@ -43,7 +48,7 @@ async def main():
                     msg += "Note "
                 elif event.type == EventCode.reservation:
                     msg += "Classroom reservation "
-            
+
                 msg += f"by {event.author}"
                 if not event.full_day:
                     msg += f" from {event.start} to {event.end}"
@@ -54,8 +59,15 @@ async def main():
         if day.grades:
             print("\nGrades:")
             for grade in day.grades:
-                real_val = f" ({grade.value})" if grade.value is not None and str(grade.value) != grade.display_value else ""
-                print(f"\t- {grade.component_description + ' ' if grade.component_description else ''}{grade.subject}: {grade.display_value}{real_val}. {grade.family_notes}")
+                real_val = (
+                    f" ({grade.value})"
+                    if grade.value is not None
+                    and str(grade.value) != grade.display_value
+                    else ""
+                )
+                print(
+                    f"\t- {grade.component_description + ' ' if grade.component_description else ''}{grade.subject}: {grade.display_value}{real_val}. {grade.family_notes}"
+                )
 
         if day.notes:
             print("\nNotes:")
@@ -69,7 +81,7 @@ async def main():
                     msg += "Annotation"
                 elif note.type == NoteType.warning:
                     msg += "Warning"
-                
+
                 msg += f" by {note.author_name} on {note.date}: {note.text}"
                 print(msg)
 
@@ -77,8 +89,11 @@ async def main():
         print()
         print()
 
+
 if __name__ == "__main__":
     if not os.getenv("CVV_USERNAME") or not os.getenv("CVV_PASSWORD"):
-        raise ValueError("Set CVV_USERNAME and CVV_PASSWORD environment variables first.")
+        raise ValueError(
+            "Set CVV_USERNAME and CVV_PASSWORD environment variables first."
+        )
 
     asyncio.run(main())
