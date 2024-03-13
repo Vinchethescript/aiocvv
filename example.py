@@ -1,8 +1,8 @@
 import asyncio
 import os
-from aiocvv.client import ClassevivaClient as Client
 from datetime import timedelta, date
-from aiocvv.enums import *
+from aiocvv.client import ClassevivaClient as Client
+from aiocvv.enums import SchoolDayStatus, AbsenceCode, EventCode, NoteType
 
 
 async def main():
@@ -35,7 +35,8 @@ async def main():
             print("\nLessons:")
             for lesson in day.lessons:
                 print(
-                    f"\t- {lesson.subject.description} at {lesson.position} hour for {lesson.duration} hour{'s' if lesson.duration != 1 else ''}"
+                    f"\t- {lesson.subject.description} at {lesson.position} hour"
+                    f" for {lesson.duration} hour{'s' if lesson.duration != 1 else ''}"
                 )
 
         if day.agenda:
@@ -66,7 +67,8 @@ async def main():
                     else ""
                 )
                 print(
-                    f"\t- {grade.component_description + ' ' if grade.component_description else ''}{grade.subject}: {grade.display_value}{real_val}. {grade.family_notes}"
+                    f"\t- {grade.component_description + ' ' if grade.component_description else ''}"
+                    f"{grade.subject}: {grade.display_value}{real_val}. {grade.family_notes}"
                 )
 
         if day.notes:

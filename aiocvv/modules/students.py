@@ -1,14 +1,13 @@
 import os
-from .core import TSCommonModule
 from datetime import datetime, date
 from typing import Optional, Any, IO
 from urllib.parse import urljoin
-from ..enums import *
-from ..dataclasses import *
-from ..types import Response, Date
-from ..utils import convert_date
 from io import BytesIO, StringIO
 from base64 import b64encode
+from .core import TSCommonModule
+from ..enums import EventCode, NoteType
+from ..types import Date, Response
+from ..utils import convert_date
 
 
 class StudentHomeworks:
@@ -210,7 +209,7 @@ class StudentsModule(TSCommonModule):
     async def notes(
         self,
         student_id: int,
-        type: Optional[NoteType] = None,
+        type: Optional[NoteType] = None,  # pylint: disable=redefined-builtin
         event: Optional[int] = None,
     ) -> Response:
         if event and not type:
@@ -240,7 +239,7 @@ class StudentsModule(TSCommonModule):
     async def documents(
         self,
         student_id: int,
-        hash: Optional[str] = None,
+        hash: Optional[str] = None,  # pylint: disable=redefined-builtin
         *,
         check: Optional[bool] = False,
     ) -> Response:

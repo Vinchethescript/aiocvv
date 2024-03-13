@@ -1,31 +1,37 @@
-import aiohttp
 import shelve
-import appdirs
 import os
 import asyncio
 import json
-from .core import CLIENT_USER_AGENT, CLIENT_DEV_APIKEY, CLIENT_CONTENT_TP
-from .modules import *
-from .errors import *
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Optional, Mapping, Any, Iterable, Union, Tuple
+from urllib.parse import urljoin, urlsplit, urlparse
+
+import aiohttp
+import appdirs
+from typing_extensions import Self
 from aiohttp.client import (
     Fingerprint,
     ClientTimeout,
     SSLContext,  # to avoid checking if `ssl` module exists
 )
-from . import me
-from .me import UserType, Teacher, Student, Parent
 from aiohttp.helpers import sentinel
 from aiohttp.typedefs import StrOrURL, LooseCookies, LooseHeaders
-from urllib.parse import urljoin, urlsplit, urlparse
-from typing_extensions import Self
+from .core import CLIENT_USER_AGENT, CLIENT_DEV_APIKEY, CLIENT_CONTENT_TP
+from .modules import (
+    TeachersModule,
+    StudentsModule,
+    ParentsModule,
+    AuthenticationModule,
+)
+from . import me
+from .errors import AuthenticationError
+from .me import UserType, Teacher, Student, Parent
 from .types import Response
 from .utils import find_exc
 
 _json = json
-LOGIN_METHODS = Union[Tuple[str, str], Tuple[str, str, str]]
+LoginMethods = Union[Tuple[str, str], Tuple[str, str, str]]
 
 
 class ClassevivaClient:
@@ -59,7 +65,6 @@ class ClassevivaClient:
         self.__teachers = None
         self.__students = None
         self.__parents = None
-        self.__users = None
         self.__me = None
 
     #          Modules          #
@@ -99,7 +104,7 @@ class ClassevivaClient:
         *,
         params: Optional[Mapping[str, str]] = None,
         data: Any = None,
-        json: Any = None,
+        json: Any = None,  # pylint: disable=redefined-outer-name
         cookies: Optional[LooseCookies] = None,
         headers: Optional[LooseHeaders] = None,
         skip_auto_headers: Optional[Iterable[str]] = None,
@@ -243,18 +248,20 @@ class ClassevivaClient:
             return False
 
         status = await self.__auth.status(data["token"])
-        type = UserType(status["ident"][:1])
+        utype = UserType(status["ident"][:1])
 
         # this is because parents doesn't have card, and
         # parents can request all of the students' endpoints
         carder = (
-            self.students if type == UserType.parent else getattr(self, type.name + "s")
+            self.students
+            if utype == UserType.parent
+            else getattr(self, utype.name + "s")
         )
 
         card = await carder.request(
             "GET", f'{"".join(filter(str.isdigit, status["ident"]))}/card'
         )
-        cls = getattr(me, type.name.capitalize())
+        cls = getattr(me, utype.name.capitalize())
         self.__me = cls(self, **card["content"]["card"])
         return True
 

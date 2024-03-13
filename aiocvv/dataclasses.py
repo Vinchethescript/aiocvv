@@ -1,7 +1,16 @@
 from dataclasses import dataclass
-from .enums import *
 from typing import Optional, List
 from datetime import date, datetime
+from .enums import (
+    AbsenceCode,
+    Weekday,
+    SchoolDayStatus,
+    EventCode,
+    LessonEvent,
+    LessonStatus,
+    NoteType,
+    GradeCode,
+)
 from .utils import create_repr
 
 
@@ -58,7 +67,7 @@ class Event:
         return self.id
 
     def __str__(self):
-        return self.type.description
+        return self.class_desc
 
     def __repr__(self):
         return create_repr(

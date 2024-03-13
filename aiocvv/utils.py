@@ -1,6 +1,7 @@
 from datetime import datetime, date, timedelta
-from typing import Union, Type
+from typing import Union, Type, Callable, Optional
 from .errors import ClassevivaError
+from .types import AnyCVVError
 
 
 def create_repr(self, **kwargs):
@@ -15,12 +16,12 @@ def create_repr(self, **kwargs):
     return f"<{type(self).__name__} {' '.join(params)}>"
 
 
-def convert_date(date: Union[datetime, date], today: bool = False) -> str:
-    date = getattr(date, "date", lambda: date)()
-    if today and date in [date.today(), date.today() - timedelta(days=1)]:
-        return "today" if date == date.today() else "yesterday"
+def convert_date(date_: Union[datetime, date], today: bool = False) -> str:
+    date_ = getattr(date_, "date", lambda: date_)()
+    if today and date_ in [date.today(), date.today() - timedelta(days=1)]:
+        return "today" if date_ == date.today() else "yesterday"
 
-    return date.strftime("%Y%m%d")
+    return date_.strftime("%Y%m%d")
 
 
 def __recurse_subclasses(cls: Type):
@@ -29,7 +30,9 @@ def __recurse_subclasses(cls: Type):
         yield from __recurse_subclasses(sub)
 
 
-def find_exc(response: dict, base: Type[ClassevivaError] = ClassevivaError):
+def find_exc(
+    response: dict, base: Type[ClassevivaError] = ClassevivaError
+) -> AnyCVVError:
     content = response["content"]
     tp = content["error"].split("/")[1]
     status = response["status"]
@@ -41,12 +44,13 @@ def find_exc(response: dict, base: Type[ClassevivaError] = ClassevivaError):
     elif status < 200 or status >= 300:
         sc = response["status_reason"].replace(" ", "")
 
+    exc = base(response)
     for sub in __recurse_subclasses(base):
-        print(sub.__name__, sc)
         if sub.__name__ == sc:
-            raise sub(response)
+            exc = sub(response)
+            break
 
-    raise base(response)
+    return exc
 
 
 def capitalize_name(string: str):
@@ -61,18 +65,20 @@ def parse_time(string: str):
     return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S%z")
 
 
-def group_by_date(data: list, parser=None, *args, **kwargs):
+def group_by_date(
+    data: list, parser: Optional[Callable] = None, *args, **kwargs
+):  # pylint: disable=keyword-arg-before-vararg
     ret = {}
     for dt in data:
-        date = (
+        date_ = (
             parse_time(dt["evtDatetimeBegin"]).date()
             if "evtDatetimeBegin" in dt
             else parse_date(dt["evtDate" if "evtDate" in dt else "dayDate"])
         )
 
-        if date not in ret:
-            ret[date] = []
+        if date_ not in ret:
+            ret[date_] = []
 
-        ret[date].append(parser(dt, *args, **kwargs) if parser else dt)
+        ret[date_].append(parser(dt, *args, **kwargs) if parser else dt)
 
     return ret

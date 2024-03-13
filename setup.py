@@ -4,11 +4,13 @@ from setuptools import setup, find_packages
 
 packages = find_packages()
 
-with open("README.md", "r") as f:
+with open("README.md", "r", encoding="utf-8") as f:
     long_desc = f.read()
 
 with open(
-    os.path.join(os.path.dirname(__file__), packages[0], "__init__.py"), "r"
+    os.path.join(os.path.dirname(__file__), packages[0], "__init__.py"),
+    "r",
+    encoding="utf-8",
 ) as f:
     kwargs = {
         var.strip("_"): val

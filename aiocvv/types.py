@@ -1,5 +1,6 @@
-from typing import TypedDict, Any, Dict, Union
+from typing import TypedDict, Any, Dict, Union, TypeVar
 from datetime import date, datetime
+from .errors import ClassevivaError
 
 
 class OKResponse(TypedDict):
@@ -22,3 +23,6 @@ class ErrorResponse(OKResponse):
 Response = Union[OKResponse, ErrorResponse]
 
 Date = Union[date, datetime]
+
+CVVErrors = TypeVar("CVVErrors", bound=ClassevivaError)
+AnyCVVError = Union[ClassevivaError, CVVErrors]  # pylint: disable=invalid-name

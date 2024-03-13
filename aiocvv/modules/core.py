@@ -3,6 +3,9 @@ import os
 from abc import ABC
 from types import SimpleNamespace
 from typing import Optional, Mapping, Any, Iterable, Union, IO
+from io import BytesIO, StringIO
+from base64 import b64encode
+from urllib.parse import urljoin
 from aiohttp.client import (
     Fingerprint,
     ClientTimeout,
@@ -10,10 +13,7 @@ from aiohttp.client import (
 )
 from aiohttp.helpers import sentinel
 from aiohttp.typedefs import StrOrURL, LooseCookies, LooseHeaders
-from urllib.parse import urljoin
 from ..types import Response
-from io import BytesIO, StringIO
-from base64 import b64encode
 
 
 class Noticeboard:
@@ -27,12 +27,12 @@ class Noticeboard:
     # def __call__(self, id: int) -> "ContextNoticeboard":
     #    return ContextNoticeboard(id, self.module)
 
-    async def all(self, id: int) -> Response:
+    async def all(self, id: int) -> Response:  # pylint: disable=redefined-builtin
         return await self.module.request("GET", f"/{id}/noticeboard")
 
     async def read(
         self,
-        id: int,
+        id: int,  # pylint: disable=redefined-builtin
         event_code: int,
         publication_id: int,
         *,
@@ -86,7 +86,7 @@ class Noticeboard:
 
     async def join(
         self,
-        id: int,
+        id: int,  # pylint: disable=redefined-builtin
         event_code: int,
         publication_id: int,
         *,
@@ -114,7 +114,11 @@ class Noticeboard:
         )
 
     async def get_attachment(
-        self, id: int, event_code: int, publication_id: int, attach_num: int = 1
+        self,
+        id: int,  # pylint: disable=redefined-builtin
+        event_code: int,
+        publication_id: int,
+        attach_num: int = 1,
     ) -> Response:
         return await self.module.request(
             "GET",
@@ -123,7 +127,7 @@ class Noticeboard:
 
     async def read_multi(
         self,
-        id: int,
+        id: int,  # pylint: disable=redefined-builtin
         event_code: int,
         publication_id: int,
         *,
@@ -140,7 +144,7 @@ class Noticeboard:
 
     async def join_multi(
         self,
-        id: int,
+        id: int,  # pylint: disable=redefined-builtin
         event_code: int,
         publication_id: int,
         *,
@@ -180,7 +184,9 @@ class Module(ABC):
         self.client: ClassevivaClient = client
 
     def get_cache(self):
-        return shelve.open(self.client._shelf_cache_path)
+        return shelve.open(
+            self.client._shelf_cache_path  # pylint: disable=protected-access
+        )
 
     async def request(
         self,
@@ -243,7 +249,7 @@ class TSCommonModule(Module):
     can access all of the Student endpoints.
     """
 
-    async def get_card(self, id: int):
+    async def get_card(self, id: int):  # pylint: disable=redefined-builtin
         return await self.request("GET", f"/{id}/card")
 
     @property

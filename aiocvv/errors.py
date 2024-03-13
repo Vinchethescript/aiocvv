@@ -10,7 +10,7 @@ class ClassevivaError(Exception):
             self.reason = response["status_reason"]
             desc = self.error + (f": {self.message}" if self.message else "")
 
-            if self.status_code == None or self.status_code != response["status"]:
+            if self.status_code is None or self.status_code != response["status"]:
                 self.status_code = response["status"]
                 desc = f"{self.status_code} {self.reason}: {desc}"
 

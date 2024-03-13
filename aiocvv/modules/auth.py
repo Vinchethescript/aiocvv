@@ -1,13 +1,14 @@
+from urllib.parse import urljoin
+from datetime import datetime, timezone
+from typing import Optional
+
 import bcrypt
 
+from aiohttp import ClientSession, ClientResponseError
 from ..errors import AuthenticationError, MultiIdentFound
 from .core import Module
 from ..core import CLIENT_USER_AGENT, CLIENT_DEV_APIKEY, CLIENT_CONTENT_TP
-from aiohttp import ClientSession, ClientResponseError
-from datetime import datetime, timezone
-from typing import Optional
 from ..utils import find_exc
-from urllib.parse import urljoin
 
 
 class AuthenticationModule(Module):

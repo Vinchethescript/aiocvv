@@ -1,6 +1,6 @@
+from typing import Optional
 from .core import Module
 from ..types import Response, Date
-from typing import Optional
 from ..utils import convert_date
 
 

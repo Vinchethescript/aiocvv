@@ -121,10 +121,10 @@ class Student(Me):
         )
 
     @staticmethod
-    def _parse_note(data, type: NoteType):
+    def _parse_note(data, type_: NoteType):
         return Note(
             id=data["evtId"],
-            type=type,
+            type=type_,
             text=data["evtText"],
             date=parse_date(data["evtDate"]),
             author_name=capitalize_name(data["authorName"]),
@@ -166,8 +166,8 @@ class Student(Me):
         resp = await self.client.students.notes(self.id)
         resp = resp["content"]
         notes = {}
-        for type in NoteType:
-            notes.update(group_by_date(resp[type.value], self._parse_note, type))
+        for t in NoteType:
+            notes.update(group_by_date(resp[t.value], self._parse_note, t))
 
         ret = []
         for notess in notes.values():
