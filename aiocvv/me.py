@@ -1,3 +1,8 @@
+"""
+This module contains the class that represents
+students, teachers and parents all together.
+"""
+
 from datetime import datetime
 from io import BytesIO
 from typing import Optional
@@ -8,6 +13,14 @@ from .utils import capitalize_name, group_by_date, parse_date
 
 
 class Me:
+    """
+    Represents a Classeviva user, whether it's a student, a teacher or a parent.
+
+    .. note::
+        This class is not meant to be manually constructed, but to be
+        used through the :class:`~aiocvv.client.ClassevivaClient` class.
+    """
+
     def __init__(self, client, **kwargs):
         from .client import ClassevivaClient
 
@@ -17,18 +30,30 @@ class Me:
 
     @property
     def identity(self):
+        """
+        The user's identity.
+        """
         return self.__card["ident"]
 
     @property
     def type(self):
+        """
+        The type of the logged in user.
+        """
         return UserType(self.__card["usrType"])
 
     @property
     def id(self):
+        """
+        The user's ID.
+        """
         return self.__card["usrId"]
 
     @property
     def school(self):
+        """
+        The user's school details.
+        """
         return School(
             self.__card["schCode"],
             self.__card["schName"],
@@ -40,32 +65,42 @@ class Me:
 
     @property
     def first_name(self):
+        """The user's first name."""
         return capitalize_name(self.__card["firstName"])
 
     @property
     def last_name(self):
+        """The user's last name."""
         return capitalize_name(self.__card["lastName"])
 
     @property
     def name(self):
+        """The user's full name."""
         return f"{self.first_name} {self.last_name}"
 
     @property
     def birth_date(self):
+        """The user's birth date."""
         return datetime.strptime(self.__card["birthDate"], "%Y-%m-%d")
 
     @property
     def fiscal_code(self):
+        """The user's fiscal code."""
         return self.__card["fiscalCode"]
 
     async def refresh(self):
+        """Refresh the user's data."""
         self.__card = await getattr(self.client, self.type.name).get_card(self.id)
 
     async def get_enabled_apps(self):
+        """Get the enabled apps for the user."""
         resp = await self.client.request("GET", "/misc/enabled-apps")
         return resp["content"].get("enabledApps", [])
 
     async def get_avatar(self) -> BytesIO:
+        """
+        Returns the user's avatar as a BytesIO object.
+        """
         resp = await self.client.request("GET", f"/users/{self.identity}/avatar")
         ret = BytesIO(resp["content"])
         ret.name = f"{self.identity}.jpg"
@@ -73,6 +108,7 @@ class Me:
 
     @property
     def noticeboard(self):
+        """The user's noticeboard."""
         if self.__noticeboard is None:
             tp = self.type
             if tp == UserType.parent:
@@ -86,10 +122,31 @@ class Me:
 
 
 class Teacher(Me):
+    """
+    Represents a Classeviva teacher.
+
+    .. note::
+        This class is not meant to be manually constructed, but to be
+        used through the :class:`~aiocvv.client.ClassevivaClient` class.
+
+    .. warning::
+        This class is not yet implemented. You have to use the
+        :meth:`~aiocvv.client.ClassevivaClient.teachers.request`
+        method to manually make requests to the Classeviva API.
+    """
+
     pass
 
 
 class Student(Me):
+    """
+    Represents a Classeviva student.
+
+    .. note::
+        This class is not meant to be manually constructed, but to be
+        used through the :class:`~aiocvv.client.ClassevivaClient` class.
+    """
+
     def __init__(self, client, **kwargs):
         super().__init__(client, **kwargs)
         self.__calendar = None
@@ -133,12 +190,14 @@ class Student(Me):
 
     @property
     def calendar(self):
+        """The user's calendar."""
         if self.__calendar is None:
             self.__calendar = Calendar(self.client.students, self.id)
 
         return self.__calendar
 
     async def get_subjects(self):
+        """Get the user's subjects."""
         resp = await self.client.students.subjects(self.id)
         resp = resp["content"]["subjects"]
         return [
@@ -153,6 +212,11 @@ class Student(Me):
         ]
 
     async def get_grades(self, subject: Optional[Subject] = None):
+        """
+        Get the user's grades.
+
+        :param subject: The subject to get the grades from.
+        """
         resp = await self.client.students.grades(
             self.id, subject.id if subject else None
         )
@@ -163,6 +227,8 @@ class Student(Me):
         ]
 
     async def get_notes(self):
+        """Get the user's notes."""
+
         resp = await self.client.students.notes(self.id)
         resp = resp["content"]
         notes = {}
@@ -177,4 +243,13 @@ class Student(Me):
 
 
 class Parent(Student):
+    """
+    Represents a Classeviva parent, which also has access to
+    the students' data (refer to :class:`~aiocvv.me.Student`).
+
+    .. note::
+        This class is not meant to be manually constructed, but to be
+        used through the :class:`~aiocvv.client.ClassevivaClient` class.
+    """
+
     pass

@@ -1,3 +1,16 @@
+"""
+This is where the dataclasses used to represent the Classeviva API responses are defined.
+
+They are used to represent the data returned by the API in a more structured and easy-to-use way.
+
+.. warning:: 
+    These should **NOT** be manually constructed, as they are returned
+    by the methods from :attr:`~aiocvv.client.ClassevivaClient.me`.
+
+    In this case, parameters should be considered as attributes, and not as parameters.
+    Dataclasses are frozen, which means that they're immutable and cannot be changed after creation.
+"""
+
 from dataclasses import dataclass
 from typing import Optional, List
 from datetime import date, datetime
@@ -16,6 +29,17 @@ from .utils import create_repr
 
 @dataclass(frozen=True)
 class AbsenceDay:
+    """
+    Represents an absence day.
+    This could be either a full-day absence, a (small) delay or an early exit.
+
+    :param id: The ID of the absence.
+    :param type: The type of absence.
+    :param date: The day of the absence.
+    :param justified: Whether the absence is justified.
+    :param position: The position of the delay or exit.
+    """
+
     id: int
     type: AbsenceCode
     date: date
@@ -33,6 +57,14 @@ class AbsenceDay:
 
 @dataclass(frozen=True)
 class SchoolDay:
+    """
+    Represents a school day.
+
+    :param date: The date.
+    :param weekday: The day weekday.
+    :param status: The kind of day (normal, non-working, etc.).
+    """
+
     date: date
     weekday: Weekday
     status: SchoolDayStatus
@@ -45,12 +77,35 @@ class SchoolDay:
 
 @dataclass(frozen=True)
 class PartialSubject:
+    """
+    Represents a partial subject.
+
+    :param code: The subject code.
+    :param description: The subject description.
+    """
+
     code: str
     description: Optional[str]
 
 
 @dataclass(frozen=True)
 class Event:
+    """
+    Represents an agenda event.
+
+    :param id: The ID of the event.
+    :param type: The kind of event (annotation, homework, or classroom reservation).
+    :param start: The start date and time.
+    :param end: The end date and time.
+    :param full_day: Whether the event is full-day or not.
+    :param author: The author (a teacher in most cases) of the event.
+    :param class_desc: The description of the classroom.
+    :param notes: The actual text of the event.
+    :param homework: The homework ID, if homework is provided.
+    :param homework_item: The homework item, if homework is provided.
+    :param subject: The subject of the event.
+    """
+
     id: int
     type: EventCode
     start: datetime
@@ -82,12 +137,32 @@ class Event:
 
 @dataclass(frozen=True)
 class AgendaDay:
+    """
+    Represents a day for the agenda.
+
+    :param date: The date.
+    :param events: The events of the day.
+    """
+
     date: date
     events: List[Event]
 
 
 @dataclass(frozen=True)
 class Lesson:
+    """
+    Represents a lesson.
+
+    :param id: The ID of the lesson.
+    :param date: The date of the lesson.
+    :param type: The type of lesson (normal or co-presence with and without support).
+    :param position: The position of the lesson in that day.
+    :param duration: The duration of the lesson.
+    :param class_desc: The description of the classroom.
+    :param subject: The subject of the lesson.
+    :param status: The status of the lesson.
+    """
+
     id: int
     date: date
     type: LessonEvent
@@ -116,12 +191,30 @@ class Lesson:
 
 @dataclass(frozen=True)
 class MIUR:
+    """
+    Represents data provided from the MIUR.
+
+    :param code: The school code.
+    :param division: The school division code.
+    """
+
     code: str
     division: str
 
 
 @dataclass(frozen=True)
 class School:
+    """
+    Represents a school.
+
+    :param code: The school code.
+    :param name: The school name.
+    :param dedication: The dedication of the school.
+    :param city: The city of the school.
+    :param province: The province of the school.
+    :param miur: The school's data from MIUR.
+    """
+
     code: str
     name: str
     dedication: str
@@ -140,6 +233,18 @@ class School:
 
 @dataclass(frozen=True)
 class Period:
+    """
+    Represents a school period (e.g. first quarter, second quarter, etc.).
+
+    :param code: The period code.
+    :param position: The position of the period.
+    :param description: The description of the period.
+    :param final: Whether the period is final.
+    :param start: The start date of the period.
+    :param end: The end date of the period.
+    :param miur_division_code: The division code provided by the MIUR.
+    """
+
     code: str
     position: int
     description: str
@@ -164,6 +269,17 @@ class Period:
 
 @dataclass(frozen=True)
 class Note:
+    """
+    Represents a school note.
+
+    :param id: The ID of the note.
+    :param type: The type of the note (annotation, disciplinary, warning and sanction).
+    :param date: The day the note has been created.
+    :param text: The text of the note.
+    :param read: Whether the note has been read.
+    :param author_name: The name of the author of the note.
+    """
+
     id: int
     type: NoteType
     date: date
@@ -185,6 +301,13 @@ class Note:
 
 @dataclass(frozen=True)
 class Teacher:
+    """
+    Represents a teacher.
+
+    :param id: The ID of the teacher.
+    :param name: The name of the teacher.
+    """
+
     id: str
     name: str
 
@@ -200,6 +323,15 @@ class Teacher:
 
 @dataclass(frozen=True)
 class Subject:
+    """
+    Represents a subject.
+
+    :param id: The ID of the subject.
+    :param description: The description of the subject.
+    :param order: The position of the subject for a UI.
+    :param teachers: The teachers that teach the subject.
+    """
+
     id: int
     description: str
     order: int
@@ -222,6 +354,32 @@ class Subject:
 
 @dataclass(frozen=True)
 class Grade:
+    """
+    Represents a subject grade.
+
+    :param subject: The subject of the grade.
+    :param subject_code: The subject's shorter name.
+    :param id: The ID of the grade.
+    :param code: The kind of grade.
+    :param date: The day the grade has been given.
+    :param value: The actual value of the grade. (e.g. 6.25)
+    :param display_value: The display value of the grade. (e.g. 6.25 is displayed as 6+)
+    :param position: The position of the grade.
+    :param family_notes: The notes of the grade visible to family and students.
+    :param color: The color of the grade.
+    :param canceled: Whether the grade has been canceled.
+    :param underlined: Whether the grade is underlined.
+    :param period: The period of the grade.
+    :param component_position: The position of the component.
+    :param component_description: The description of the component.
+    :param weight: The weight of the grade.
+    :param grade_master_id: The ID of the grade master.
+    :param skill_id: The ID of the skill.
+    :param skill_description: The description of the skill.
+    :param skill_code: The code of the skill.
+    :param skill_master_id: The ID of the skill master.
+    """
+
     subject: Subject
     subject_code: str
     id: int
@@ -262,6 +420,19 @@ class Grade:
 
 @dataclass(frozen=True)
 class Day(SchoolDay):
+    """
+    Represents a full overview of a day.
+
+    :param date: The date.
+    :param weekday: The day weekday.
+    :param status: The kind of day (normal, non-working, etc.).
+    :param lessons: The lessons of that day.
+    :param agenda: The events of that day.
+    :param events: The absences of that day.
+    :param grades: The grades of that day.
+    :param notes: The notes of that day.
+    """
+
     date: date
     lessons: List[Lesson]
     agenda: List[Event]

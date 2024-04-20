@@ -1,3 +1,10 @@
+"""
+This module is NOT documented because it is
+internal and should NOT be used externally.
+"""
+
+# pylint: disable=missing-docstring
+
 from urllib.parse import urljoin
 from datetime import datetime, timezone
 from typing import Optional

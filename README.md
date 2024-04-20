@@ -1,5 +1,5 @@
 # aiocvv
-An asynchronous client for Classeviva written in Python.
+An API wrapper for Classeviva written in Python using asyncio.
 
 Teachers' endpoints haven't been implemented yet. If you are a teacher and/or you want to contribute, feel free to [open a pull request](https://github.com/Vinchethescript/pulls).
 

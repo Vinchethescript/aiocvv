@@ -6,10 +6,10 @@ from aiocvv.enums import SchoolDayStatus, AbsenceCode, EventCode, NoteType
 
 
 async def main():
-    print("Showing information for the last 7 days.\n")
     client = await Client(os.getenv("CVV_USERNAME"), os.getenv("CVV_PASSWORD"))
     begin = date.today() - timedelta(days=7)
     end = date.today()
+    print(f"Hello, {client.me.name}. Showing information for the last 7 days.\n")
     async for day in client.me.calendar(begin, end):
         if day.status != SchoolDayStatus.school:
             print(f"{day.date} isn't a school day.\n")
@@ -67,8 +67,13 @@ async def main():
                     else ""
                 )
                 print(
-                    f"\t- {grade.component_description + ' ' if grade.component_description else ''}"
-                    f"{grade.subject}: {grade.display_value}{real_val}. {grade.family_notes}"
+                    "\t- "
+                    + (
+                        grade.component_description + " "
+                        if grade.component_description
+                        else ""
+                    )
+                    + f"{grade.subject}: {grade.display_value}{real_val}. {grade.family_notes}"
                 )
 
         if day.notes:

@@ -1,3 +1,5 @@
+"""The module where the ClassevivaClient class is located."""
+
 import shelve
 import os
 import asyncio
@@ -8,7 +10,7 @@ from typing import Optional, Mapping, Any, Iterable, Union, Tuple
 from urllib.parse import urljoin, urlsplit, urlparse
 
 import aiohttp
-import appdirs
+from appdirs import user_cache_dir
 from typing_extensions import Self
 from aiohttp.client import (
     Fingerprint,
@@ -36,11 +38,44 @@ LoginMethods = Union[Tuple[str, str], Tuple[str, str, str]]
 
 class ClassevivaClient:
     """
-    Client docs: https://web.spaggiari.eu/rest/v1/docs/html
-                 https://web.spaggiari.eu/rest/v1/docs/plaintext
-
     The client class for Classeviva.
-    `ClassevivaClient("yourusername", "yourpassword")`
+
+    This class provides an interface to interact with the Classeviva REST APIs,
+    where all the requests from this module are made.
+    You can get any information from Classeviva by either using the :attr:`me` attribute
+    or by making manual requests using the appropriate module or the :meth:`request` method-
+
+    The modules are used to make manual HTTP requests to the Classeviva APIs.
+    This is useful when:
+
+    * You use the :attr:`me` attribute to automatically get the information you need, which chooses the correct module to use;
+    * You want to make a request to an endpoint that is not (yet) or partially implemented in this wrapper;
+    * You want to have more control over the request or response.
+    * You don't want to manually write every URL, like you would do with the :meth:`request` method.
+
+    .. note::
+        Of course, if you decide to use modules,
+        you will have to parse the response yourself,
+        as they only return the raw response.
+
+
+    For more information about the endpoints,
+    refer to the Classeviva REST API documentation:
+
+    * `HTML Documentation <https://web.spaggiari.eu/rest/v1/docs/html>`_
+    * `Plaintext Documentation <https://web.spaggiari.eu/rest/v1/docs/plaintext>`_
+
+
+    :param username: The username for authentication.
+    :param password: The password for authentication.
+    :param identity: Optional. The identity for authentication.
+    :param loop: Optional. The event loop to use.
+                 If not provided, the default event loop will be used.
+
+    :type username: str
+    :type password: str
+    :type identity: str
+    :type loop: asyncio.AbstractEventLoop
     """
 
     BASE_URL = "https://web.spaggiari.eu/rest/v1/"
@@ -58,7 +93,7 @@ class ClassevivaClient:
         self.__username = username
         self.__password = password
         self.__identity = identity
-        self._shelf_cache_path = os.path.join(appdirs.user_cache_dir(), "classeviva")
+        self._shelf_cache_path = os.path.join(user_cache_dir(), "classeviva")
         self.__auth = AuthenticationModule(
             self
         )  # NOTE: keeping this private for obvious reasons
@@ -73,6 +108,20 @@ class ClassevivaClient:
 
     @property
     def teachers(self) -> TeachersModule:
+        """
+        Get the teachers module for manually making
+        requests to the teachers' endpoints.
+
+        .. warning::
+            This whole module has not been implemented yet, because it's
+            not possible to test it without having a teacher account.
+            Therefore, this is just a placeholder for future updates, which
+            means there are no endpoints in here. If you are a teacher and
+            you want to contribute to this project, feel free to open a pull request.
+            Otherwise, you'll have to manually make requests using the :meth:`request` method.
+
+        :return: The (empty) module instance.
+        """
         if self.__teachers is None:
             self.__teachers = TeachersModule(self)
 
@@ -80,6 +129,12 @@ class ClassevivaClient:
 
     @property
     def students(self) -> StudentsModule:
+        """
+        Get the students module for manually making
+        requests to the students' endpoints.
+
+        :return: The module instance.
+        """
         if self.__students is None:
             self.__students = StudentsModule(self)
 
@@ -87,6 +142,12 @@ class ClassevivaClient:
 
     @property
     def parents(self) -> ParentsModule:
+        """
+        Get the parents module for manually making
+        requests to the parents' endpoints.
+
+        :return: The module instance.
+        """
         if self.__parents is None:
             self.__parents = ParentsModule(self)
 
@@ -94,17 +155,24 @@ class ClassevivaClient:
 
     @property
     def me(self) -> Optional[Union[Student, Parent, Teacher]]:
+        """
+        Get the current user.
+
+        .. note::
+            This will be None until :meth:`login` is called or the class is awaited.
+
+        :return: The current user instance.
+        """
         return self.__me
 
-    # HTTP requests and caching #
     async def request(
         self,
         method: str,
-        str_or_url: StrOrURL,
+        endpoint: str,
         *,
         params: Optional[Mapping[str, str]] = None,
         data: Any = None,
-        json: Any = None,  # pylint: disable=redefined-outer-name
+        json: Optional[dict] = None,  # pylint: disable=redefined-outer-name
         cookies: Optional[LooseCookies] = None,
         headers: Optional[LooseHeaders] = None,
         skip_auto_headers: Optional[Iterable[str]] = None,
@@ -122,21 +190,76 @@ class ClassevivaClient:
         trace_request_ctx: Optional[SimpleNamespace] = None,
         read_bufsize: Optional[int] = None,
     ) -> Response:
-        """Make an HTTP request to the Classeviva REST APIs."""
-        if urlsplit(str_or_url).scheme:
+        """
+        Make a raw HTTP request to the Classeviva REST APIs using aiohttp.
+
+        For information about the valid endpoints,
+        refer to the Classeviva REST API documentation:
+
+        * `HTML Documentation <https://web.spaggiari.eu/rest/v1/docs/html>`_
+        * `Plaintext Documentation <https://web.spaggiari.eu/rest/v1/docs/plaintext>`_
+
+        :param method: The HTTP method to use.
+        :param endpoint: The path for the request.
+                         Must be a relative URL since the base URL is `https://web.spaggiari.eu/rest/v1/`.
+        :param params: Optional. The query parameters for the request.
+        :param data: Optional. The request body data.
+        :param json: Optional. The request body JSON data.
+        :param cookies: Optional. The cookies to include in the request.
+        :param headers: Optional. The headers to include in the request.
+        :param skip_auto_headers: Optional. The headers to skip from automatic inclusion.
+        :param compress: Optional. The compression method to use.
+        :param chunked: Optional. Whether to use chunked transfer encoding.
+        :param raise_for_status: Optional. Whether to raise an exception for non-successful responses.
+        :param read_until_eof: Optional. Whether to read the response until EOF.
+        :param proxy: Optional. The proxy URL or path.
+        :param timeout: Optional. The request timeout.
+        :param verify_ssl: Optional. Whether to verify SSL certificates.
+        :param fingerprint: Optional. The SSL fingerprint.
+        :param ssl_context: Optional. The SSL context.
+        :param ssl: Optional. The SSL configuration.
+        :param proxy_headers: Optional. The headers to include in the proxy request.
+        :param trace_request_ctx: Optional. The request context for tracing.
+        :param read_bufsize: Optional. The read buffer size.
+
+        :type method: str
+        :type endpoint: str
+        :type params: Optional[Mapping[str, str]]
+        :type data: Any
+        :type json: dict
+        :type cookies: Optional[LooseCookies]
+        :type headers: Optional[LooseHeaders]
+        :type skip_auto_headers: Optional[Iterable[str]]
+        :type compress: Optional[str]
+        :type chunked: Optional[bool]
+        :type raise_for_status: bool
+        :type read_until_eof: bool
+        :type proxy: Optional[StrOrURL]
+        :type timeout: ClientTimeout
+        :type verify_ssl: Optional[bool]
+        :type fingerprint: Optional[bytes]
+        :type ssl_context: Optional[SSLContext]
+        :type ssl: Optional[Union[SSLContext, bool, Fingerprint]]
+        :type proxy_headers: Optional[LooseHeaders]
+        :type trace_request_ctx: Optional[SimpleNamespace]
+        :type read_bufsize: Optional[int]
+
+        :return: The HTTP response dictionary.
+        """
+        if urlsplit(endpoint).scheme:
             raise ValueError(
                 f"Invalid URL given: The URL provided is not for {self.BASE_URL}."
             )
 
-        if not str_or_url.startswith(self.BASE_URL):
-            str_or_url = urljoin(self.BASE_URL, str_or_url.lstrip("/"))
+        if not endpoint.startswith(self.BASE_URL):
+            endpoint = urljoin(self.BASE_URL, endpoint.lstrip("/"))
 
         login = await self.__auth.login(
             self.__username, self.__password, self.__identity
         )
         token = login["token"]
 
-        parsed_url = urlparse(str_or_url)
+        parsed_url = urlparse(endpoint)
         cache = await self.loop.run_in_executor(
             None, shelve.open, self._shelf_cache_path
         )
@@ -182,7 +305,7 @@ class ClassevivaClient:
             async with aiohttp.ClientSession() as session:
                 async with session.request(
                     method,
-                    str_or_url,
+                    endpoint,
                     params=params,
                     data=data,
                     json=json,
@@ -237,6 +360,15 @@ class ClassevivaClient:
             await self.loop.run_in_executor(None, cache.close)
 
     async def login(self, raise_exceptions: bool = True):
+        """
+        Log in to Classeviva using the passed credentials.
+
+        :param raise_exceptions: Optional. Whether to raise exceptions for authentication errors.
+        :type raise_exceptions: bool
+
+        :return: True if login is successful, False otherwise.
+        :rtype: bool
+        """
         try:
             data = await self.__auth.login(
                 self.__username, self.__password, self.__identity

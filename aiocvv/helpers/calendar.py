@@ -1,6 +1,14 @@
-from typing import Optional, List
+"""
+This helper contains the Calendar class, which is used to
+interact with the calendar endpoint of the Classeviva API.
+
+This class is used to get information about the user's calendar,
+such as school days, absences, events, grades, notes, and more.
+"""
+
+from typing import Optional, List, AsyncIterator
 from datetime import datetime, timedelta
-from ..utils import parse_date, parse_time, group_by_date
+from ..utils import parse_date, group_by_date
 from ..modules import StudentsModule
 from ..types import Date
 from ..dataclasses import (
@@ -22,12 +30,17 @@ from ..enums import (
     LessonStatus,
     NoteType,
     Weekday,
-    SchoolDayStatus,
 )
 
 
 class Calendar:
-    def __init__(self, module: StudentsModule, id: int):
+    """
+    Represents the whole calendar of a student.
+    """
+
+    def __init__(
+        self, module: StudentsModule, id: int
+    ):  # pylint: disable=redefined-builtin
         self.__module = module
         self.id = id
 
@@ -93,12 +106,26 @@ class Calendar:
     async def get_school_days(
         self, begin: Optional[Date] = None, end: Optional[Date] = None
     ) -> List[SchoolDay]:
+        """
+        Get the school days in a range of dates.
+
+        :param begin: The start date.
+        :param end: The end date.
+        :return: A list of :class:`~aiocvv.dataclasses.SchoolDay` objects.
+        """
         ret = (await self.__module.calendar(self.id, begin, end))["content"]
         return [self.__parse_school_day(day) for day in ret["calendar"]]
 
     async def get_absences(
         self, begin: Optional[Date] = None, end: Optional[Date] = None
-    ):
+    ) -> List[AbsenceDay]:
+        """
+        Get the absences in a range of dates.
+
+        :param begin: The start date.
+        :param end: The end date.
+        :return: A list of :class:`~aiocvv.dataclasses.AbsenceDay` objects.
+        """
         ret = await self.__module.absences(self.id, begin, end)
         return [
             AbsenceDay(
@@ -118,13 +145,25 @@ class Calendar:
         event_code: Optional[EventCode] = None,
         *,
         separate_days: bool = True,
-    ):
+    ) -> AgendaDay:
+        """
+        Get the agenda in a range of dates.
+
+        :param begin: The start date.
+        :param end: The end date.
+        :param event_code: The event code to filter by.
+        :param separate_days: Whether to separate the events by day.
+        :return: A list of :class:`~aiocvv.dataclasses.AgendaDay` objects.
+        """
         ret = await self.__module.agenda(self.id, begin, end, event_code)
+        subjects = await self.__module.client.me.get_subjects()
 
         if not separate_days:
-            return [self.__parse_event(evt) for evt in ret["content"]["agenda"]]
+            return [
+                self.__parse_event(evt, subjects) for evt in ret["content"]["agenda"]
+            ]
 
-        days = group_by_date(ret["content"]["agenda"], self.__parse_event)
+        days = group_by_date(ret["content"]["agenda"], self.__parse_event, subjects)
 
         return [AgendaDay(date, events) for date, events in days.items()]
 
@@ -135,10 +174,25 @@ class Calendar:
         *,
         subject: Optional[int] = None,
     ) -> List[Lesson]:
+        """
+        Get the lessons in a range of dates.
+
+        :param begin: The start date.
+        :param end: The end date.
+        :param subject: The subject to filter by.
+        :return: A list of :class:`~aiocvv.dataclasses.Lesson` objects.
+        """
+
         ret = await self.__module.lessons(self.id, begin, end, subject=subject)
         return [self.__parse_lesson(l) for l in ret["content"]["lessons"]]
 
     async def get_periods(self):
+        """
+        Get the periods of the student's school.
+
+        :return: A list of :class:`~aiocvv.dataclasses.Period` objects.
+        """
+
         ret = await self.__module.periods(self.id)
         return [
             Period(
@@ -154,6 +208,16 @@ class Calendar:
         ]
 
     async def get_day(self, start: Date, end: Optional[Date] = None):
+        """
+        Get all of the information available for a specific day,
+        merging calendar, absences, agenda, grades, notes, and
+        school days all together here.
+
+        :param start: The date of the day.
+        :param end: The end date.
+        :return: A list of :class:`~aiocvv.dataclasses.Day` objects.
+        """
+
         subjects = await self.__module.client.me.get_subjects()
         periods = await self.get_periods()
         schooldays = await self.__module.calendar(self.id, start, end or start)
@@ -175,11 +239,15 @@ class Calendar:
         lessons = group_by_date(data["lessons"], self.__parse_lesson)
         agenda = group_by_date(data["agenda"], self.__parse_event, subjects)
         events = group_by_date(data["events"], self.__parse_absence)
-        grades = group_by_date(data["grades"], me._parse_grade, subjects, periods)
+        grades = group_by_date(
+            data["grades"], me._parse_grade, subjects, periods
+        )  # pylint: disable=protected-access
         schooldays = group_by_date(schooldays["calendar"])
         notes = {}
-        for type in NoteType:
-            notes.update(group_by_date(data["notes"][type.value], me._parse_note, type))
+        for tp in NoteType:
+            notes.update(
+                group_by_date(data["notes"][tp.value], me._parse_note, tp)
+            )  # pylint: disable=protected-access
 
         # merge all the days together without duplicates
         days = list(
@@ -215,19 +283,30 @@ class Calendar:
 
         return ret
 
-    async def __call__(self, begin: Date, end: Date):
+    @staticmethod
+    def __filter_check(begin: Date, day: int):
+        def chk(d: Day):
+            return d.date == begin + timedelta(days=day)
+
+        return chk
+
+    async def __call__(self, begin: Date, end: Date) -> AsyncIterator[Day]:
+        """
+        Iterate over the days in a range of dates, returning
+        the information available for each day, merging calendar,
+        absences, agenda, grades, notes, and school days all together here.
+        """
         if end < begin:
             raise ValueError("end date cannot be before begin date")
-        # make it iterate between the days between the dates, including the two dates themselves
+
         subjects = await self.__module.client.me.get_subjects()
         periods = await self.get_periods()
         schooldays = await self.__module.calendar(self.id, begin, end or begin)
         schooldays = schooldays["content"]
         for day in range((end - begin).days + 1):
-            date = begin + timedelta(days=day)
             yield list(
                 filter(
-                    lambda d: d.date == date,
+                    self.__filter_check(begin, day),
                     await self.__do_get_day(subjects, periods, schooldays, begin, end),
                 )
             )[0]

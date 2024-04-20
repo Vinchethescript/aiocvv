@@ -1,9 +1,17 @@
+"""
+Type hints that are used across the whole project.
+"""
+
 from typing import TypedDict, Any, Dict, Union, TypeVar
 from datetime import date, datetime
 from .errors import ClassevivaError
 
 
 class OKResponse(TypedDict):
+    """
+    Type hint for a successful response.
+    """
+
     created_at: int
     content: Any
     headers: Dict[str, str]
@@ -12,11 +20,19 @@ class OKResponse(TypedDict):
 
 
 class ErrorResponseContent(TypedDict):
+    """
+    Type hint for the content of an error response.
+    """
+
     statusCode: int
     error: str
 
 
 class ErrorResponse(OKResponse):
+    """
+    Type hint for an error response.
+    """
+
     content: ErrorResponseContent
 
 
