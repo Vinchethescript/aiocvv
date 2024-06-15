@@ -190,7 +190,7 @@ class Lesson:
 
 
 @dataclass(frozen=True)
-class MIUR:
+class MIURData:
     """
     Represents data provided from the MIUR.
 
@@ -220,7 +220,7 @@ class School:
     dedication: str
     city: str
     province: str
-    miur: MIUR
+    miur_data: MIURData
 
     def __str__(self):
         return self.name
@@ -232,56 +232,22 @@ class School:
 
 
 @dataclass(frozen=True)
-class Period:
-    """
-    Represents a school period (e.g. first quarter, second quarter, etc.).
-
-    :param code: The period code.
-    :param position: The position of the period.
-    :param description: The description of the period.
-    :param final: Whether the period is final.
-    :param start: The start date of the period.
-    :param end: The end date of the period.
-    :param miur_division_code: The division code provided by the MIUR.
-    """
-
-    code: str
-    position: int
-    description: str
-    final: bool
-    start: date
-    end: date
-    miur_division_code: Optional[str] = None
-
-    def __str__(self):
-        return self.description
-
-    def __repr__(self):
-        return create_repr(
-            self,
-            code=self.code,
-            description=self.description,
-            start=self.start,
-            end=self.end,
-            final=self.final,
-        )
-
-
-@dataclass(frozen=True)
 class Note:
     """
     Represents a school note.
 
     :param id: The ID of the note.
     :param type: The type of the note (annotation, disciplinary, warning and sanction).
-    :param date: The day the note has been created.
+    :param day: The day the note has been created.
     :param text: The text of the note.
     :param read: Whether the note has been read.
     :param author_name: The name of the author of the note.
+    :param end: Optional. The day the disciplinary sanction ends. Only available when :attr:`type` is `sanction`.
     """
 
     id: int
     type: NoteType
+    end: Optional[date]
     date: date
     text: str
     read: bool
@@ -336,6 +302,7 @@ class Subject:
     description: str
     order: int
     teachers: List[Teacher]
+    grades: Optional[List["Grade"]]
 
     def __int__(self):
         return self.id
@@ -385,14 +352,14 @@ class Grade:
     id: int
     code: GradeCode
     date: date
-    value: int
+    value: Optional[int]
     display_value: str
     position: int
     family_notes: str
     color: str
     canceled: bool
     underlined: bool
-    period: Period
+    period: "Period"
     component_position: int
     component_description: str
     weight: int
@@ -451,3 +418,7 @@ class Day(SchoolDay):
             grades=self.grades,
             notes=self.notes,
         )
+
+
+# This has been imported here to avoid circular imports
+from .helpers.calendar.period import Period

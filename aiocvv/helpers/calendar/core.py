@@ -7,11 +7,11 @@ such as school days, absences, events, grades, notes, and more.
 """
 
 from typing import Optional, List, AsyncIterator
-from datetime import datetime, timedelta
-from ..utils import parse_date, group_by_date
-from ..modules import StudentsModule
-from ..types import Date
-from ..dataclasses import (
+from datetime import datetime, timedelta, date
+from ...utils import parse_date, group_by_date, create_repr
+from ...modules import StudentsModule
+from ...types import Date
+from ...dataclasses import (
     SchoolDay,
     AbsenceDay,
     Event,
@@ -19,10 +19,9 @@ from ..dataclasses import (
     Subject,
     PartialSubject,
     Lesson,
-    Period,
     Day,
 )
-from ..enums import (
+from ...enums import (
     SchoolDayStatus,
     AbsenceCode,
     EventCode,
@@ -31,6 +30,7 @@ from ..enums import (
     NoteType,
     Weekday,
 )
+from .period import Period
 
 
 class Calendar:
@@ -41,7 +41,7 @@ class Calendar:
     def __init__(
         self, module: StudentsModule, id: int
     ):  # pylint: disable=redefined-builtin
-        self.__module = module
+        self.module = module
         self.id = id
 
     @staticmethod
@@ -113,7 +113,7 @@ class Calendar:
         :param end: The end date.
         :return: A list of :class:`~aiocvv.dataclasses.SchoolDay` objects.
         """
-        ret = (await self.__module.calendar(self.id, begin, end))["content"]
+        ret = (await self.module.calendar(self.id, begin, end))["content"]
         return [self.__parse_school_day(day) for day in ret["calendar"]]
 
     async def get_absences(
@@ -126,7 +126,7 @@ class Calendar:
         :param end: The end date.
         :return: A list of :class:`~aiocvv.dataclasses.AbsenceDay` objects.
         """
-        ret = await self.__module.absences(self.id, begin, end)
+        ret = await self.module.absences(self.id, begin, end)
         return [
             AbsenceDay(
                 id=evt["evtId"],
@@ -155,8 +155,8 @@ class Calendar:
         :param separate_days: Whether to separate the events by day.
         :return: A list of :class:`~aiocvv.dataclasses.AgendaDay` objects.
         """
-        ret = await self.__module.agenda(self.id, begin, end, event_code)
-        subjects = await self.__module.client.me.get_subjects()
+        ret = await self.module.agenda(self.id, begin, end, event_code)
+        subjects = await self.module.client.me.get_subjects()
 
         if not separate_days:
             return [
@@ -183,7 +183,7 @@ class Calendar:
         :return: A list of :class:`~aiocvv.dataclasses.Lesson` objects.
         """
 
-        ret = await self.__module.lessons(self.id, begin, end, subject=subject)
+        ret = await self.module.lessons(self.id, begin, end, subject=subject)
         return [self.__parse_lesson(l) for l in ret["content"]["lessons"]]
 
     async def get_periods(self):
@@ -193,19 +193,8 @@ class Calendar:
         :return: A list of :class:`~aiocvv.dataclasses.Period` objects.
         """
 
-        ret = await self.__module.periods(self.id)
-        return [
-            Period(
-                code=period["periodCode"],
-                position=period["periodPos"],
-                description=period["periodDesc"],
-                final=period["isFinal"],
-                start=parse_date(period["dateStart"]),
-                end=parse_date(period["dateEnd"]),
-                miur_division_code=period["miurDivisionCode"],
-            )
-            for period in ret["content"]["periods"]
-        ]
+        ret = await self.module.periods(self.id)
+        return [Period(self, **period) for period in ret["content"]["periods"]]
 
     async def get_day(self, start: Date, end: Optional[Date] = None):
         """
@@ -218,9 +207,9 @@ class Calendar:
         :return: A list of :class:`~aiocvv.dataclasses.Day` objects.
         """
 
-        subjects = await self.__module.client.me.get_subjects()
+        subjects = await self.module.client.me.get_subjects()
         periods = await self.get_periods()
-        schooldays = await self.__module.calendar(self.id, start, end or start)
+        schooldays = await self.module.calendar(self.id, start, end or start)
         schooldays = schooldays["content"]
         return await self.__do_get_day(subjects, periods, schooldays, start, end)
 
@@ -232,8 +221,8 @@ class Calendar:
         start: Date,
         end: Optional[Date] = None,
     ) -> List[Day]:
-        me = self.__module.client.me
-        data = await self.__module.overview(self.id, start, end)
+        me = self.module.client.me
+        data = await self.module.overview(self.id, start, end)
         data = data["content"]
 
         lessons = group_by_date(data["lessons"], self.__parse_lesson)
@@ -299,9 +288,9 @@ class Calendar:
         if end < begin:
             raise ValueError("end date cannot be before begin date")
 
-        subjects = await self.__module.client.me.get_subjects()
+        subjects = await self.module.client.me.get_subjects()
         periods = await self.get_periods()
-        schooldays = await self.__module.calendar(self.id, begin, end or begin)
+        schooldays = await self.module.calendar(self.id, begin, end or begin)
         schooldays = schooldays["content"]
         for day in range((end - begin).days + 1):
             yield list(

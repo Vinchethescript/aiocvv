@@ -1,5 +1,5 @@
 """
-The modules are used to make manual HTTP requests to the Classeviva APIs.
+The modules are used to make manual HTTP requests to the Classeviva APIs. These come from the official API documentation and are implemented in the wrapper exactly as they were written on there.
 
 Modules are useful when:
 

@@ -5,7 +5,7 @@ The noticeboard can be used both by students and teachers.
 
 # pylint: disable=arguments-differ
 
-from typing import Optional, Any, IO, List
+from typing import Optional, Any, IO, List, Union
 from io import BytesIO
 from ..modules.core import BaseModule, Noticeboard
 from ..types import Response
@@ -34,35 +34,51 @@ class File:
         return f"<File name={self.filename!r}>"
 
 
-class Attachment(File):
+class PartialAttachment:
+    """
+    Represents an attachment of an uploaded noticeboard item.
+
+    .. note::
+        This comes from a _partial_ item, so the attachment is not downloadable.
+        To download the attachment, you must read the item first.
+    """
+
+    def __init__(self, data: dict):
+        # pylint: disable=super-init-not-called
+        self.filename = data["fileName"]
+        self.num = data["attachNum"]
+
+
+class Attachment(File, PartialAttachment):
     """
     Represents an attachment of an uploaded noticeboard item.
     """
 
     def __init__(self, item: "NoticeboardItem", data: dict):
-        # pylint: disable=super-init-not-called
-        self.filename = data["fileName"]
-        self.num = data["attachNum"]
+        PartialAttachment.__init__(self, data)
         self.__item = item
 
     async def download(self):
         """Download the attachment."""
-        resp = await self.__item.noticeboard.get_attachment(
-            self.__item.code, self.__item.id, self.num
+        resp = await self.__item.noticeboard.noticeboard.get_attachment(
+            self.__item.noticeboard.id, self.__item.code, self.__item.id, self.num
         )
         data = BytesIO(resp["content"])
         super().__init__(data, self.filename)
         return self
 
 
-class NoticeboardItem:
+class PartialNoticeboardItem:
     """
-    Represents an item in the noticeboard.
+    Represents a item in the noticeboard _partially_.
+
+    .. note::
+        This class is _partial_, which means it must be :func:`~aiocvv.helpers.noticeboard.PartialNoticeboardItem.read` to get its content.
+        This is because reading the item would change its read status.
     """
 
-    def __init__(self, nb: "MyNoticeboard", payload: dict, content: str):
+    def __init__(self, nb: "MyNoticeboard", payload: dict):
         self.__payload = payload
-        self.__content = content
         self.__board = nb
         self.__attachments = []
 
@@ -72,17 +88,12 @@ class NoticeboardItem:
         return self.__board
 
     @property
-    def content(self):
-        """The item's content."""
-        return self.__content
-
-    @property
     def id(self) -> int:
         """The item's publication ID."""
         return self.__payload["pubId"]
 
     @property
-    def read(self):
+    def is_read(self):
         """Whether the item has been read."""
         return self.__payload["readStatus"]
 
@@ -111,11 +122,40 @@ class NoticeboardItem:
         """The item's attachments."""
         if not self.__attachments:
             for attach in self.__payload["attachments"]:
-                self.__attachments.append(Attachment(self, attach))
+                if isinstance(self, NoticeboardItem):
+                    self.__attachments.append(Attachment(self, attach))
+                else:
+                    self.__attachments.append(PartialAttachment(attach))
 
             self.__attachments = list(sorted(self.__attachments, key=lambda x: x.num))
 
         return self.__attachments
+
+    async def read(self) -> Response:
+        """
+        Read the item.
+
+        :return: The noticeboard full item.
+        """
+        return await self.__board.read(self.code, self.id)
+
+
+class NoticeboardItem(PartialNoticeboardItem):
+    """
+    Represents a item in the noticeboard.
+    """
+
+    def __init__(self, nb: "MyNoticeboard", payload: dict, content: str):
+        super().__init__(nb, payload)
+        self.__content = content
+
+    @property
+    def content(self):
+        """The item's content."""
+        return self.__content
+
+    async def read(self):
+        return self
 
     async def join(
         self,
@@ -126,7 +166,7 @@ class NoticeboardItem:
         raise_exc: bool = True,
     ) -> bool:
         """
-        Join the noticeboard item.
+        Join this item.
 
         :param text: The text to send.
         :param sign: Whether to sign the text.
@@ -136,7 +176,7 @@ class NoticeboardItem:
         :return: Whether the operation was successful.
         """
         try:
-            await self.__board.join(
+            await self.__board.noticeboard.join(
                 self.__payload["evtCode"],
                 self.__payload["pubId"],
                 text=text,
@@ -156,6 +196,9 @@ class NoticeboardItem:
         return True
 
 
+AnyNoticeboardItem = Union[PartialNoticeboardItem, NoticeboardItem]
+
+
 class MyNoticeboard:
     """
     Represents the noticeboard of a user.
@@ -169,7 +212,7 @@ class MyNoticeboard:
         self.id = id
         self.__read = self.noticeboard.read
 
-    async def all(self) -> List[NoticeboardItem]:
+    async def all(self) -> List[AnyNoticeboardItem]:
         """Get all the items in the noticeboard."""
         ret = []
         async for item in self:
@@ -184,76 +227,60 @@ class MyNoticeboard:
             if id == item["pubId"] and code == item["evtCode"]:
                 return item
 
-    async def read(self, event_code: str, publication_id: int) -> Response:
+    async def get(
+        self, code: str, id: int  # pylint: disable=redefined-builtin
+    ) -> AnyNoticeboardItem:
+        """
+        Get a noticeboard item.
+
+        .. note::
+            The returned item may be a _partial_, meaning that it doesn't contain its content.
+            This is because you have to read the item to get its content, and that would change the read status of the item.
+
+        :param code: The event code of the item.
+        :param id: The publication ID of the item.
+
+        :return: The partial noticeboard item.
+        """
+
+        payload = await self.__get(code, id)
+        if payload["readStatus"]:
+            return await self.read(code, id)
+
+        return PartialNoticeboardItem(self, payload)
+
+    async def read(self, event_code: str, publication_id: int) -> NoticeboardItem:
         """
         Read a noticeboard item.
 
+        .. note::
+            This will automatically mark the item as read from the Classeviva backend.
+
         :param event_code: The event code of the item.
         :param publication_id: The publication ID of the item.
 
-        :return: The response from the Classeviva API.
+        :return: The noticeboard full item.
         """
-        payload = await self.__get(event_code, publication_id)
         data = await self.__read(self.id, event_code, publication_id)
+        payload = await self.__get(event_code, publication_id)
 
         return NoticeboardItem(self, payload, data["content"]["item"]["text"])
-
-    async def join(
-        self,
-        event_code: str,
-        publication_id: int,
-        *,
-        text: Optional[str] = None,
-        file: Optional[IO[Any]] = None,
-        filename: Optional[str] = None,
-        sign: Optional[bool] = None,
-        attrs: bool = True,
-        include_attachment: bool = False,
-        reply_info: bool = False,
-        multi: bool = False,
-    ) -> Response:
-        """
-        Join a noticeboard item.
-
-        :param event_code: The event code of the item.
-        :param publication_id: The publication ID of the item.
-        """
-        return await self.noticeboard.join(
-            self.id,
-            event_code,
-            publication_id,
-            text=text,
-            filename=filename,
-            file=file,
-            sign=sign,
-            attrs=attrs,
-            include_attachment=include_attachment,
-            reply_info=reply_info,
-            multi=multi,
-        )
-
-    async def get_attachment(
-        self, event_code: int, publication_id: int, attach_num: int = 1
-    ) -> Response:
-        """
-        Get an attachment from a noticeboard item.
-
-        :param event_code: The event code of the item.
-        :param publication_id: The publication ID of the item.
-        :param attach_num: The attachment number.
-        """
-        return await self.noticeboard.get_attachment(
-            self.id, event_code, publication_id, attach_num
-        )
 
     async def __aiter__(self):
         data = await self.noticeboard.all(self.id)
 
         for item in data["content"]["items"]:
-            yield NoticeboardItem(
-                self,
-                item,
-                (await self.__read(self.id, item["evtCode"], item["pubId"]))["content"][
-                    "item"
-                ]["text"],
-            )
+            # return the full item if it's already been read
+            if item["readStatus"]:
+                yield NoticeboardItem(
+                    self,
+                    item,
+                    (await self.__read(self.id, item["evtCode"], item["pubId"]))[
+                        "content"
+                    ]["item"]["text"],
+                )
+            else:
+                yield PartialNoticeboardItem(
+                    self,
+                    item,
+                )

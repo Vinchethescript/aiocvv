@@ -57,6 +57,9 @@ class Noticeboard:
         """
         Read a noticeboard item.
 
+        .. note::
+            This will automatically mark the item as read from the Classeviva backend.
+
         :param id: The ID of the student/teacher.
         :param event_code: The code of the notice.
         :param publication_id: The ID itself of the notice.
@@ -131,6 +134,9 @@ class Noticeboard:
     ) -> Response:
         """
         Join a noticeboard item.
+
+        .. note::
+            This will automatically mark the item as read from the Classeviva backend.
 
         :param id: The ID of the student/teacher.
         :param event_code: The code of the notice.

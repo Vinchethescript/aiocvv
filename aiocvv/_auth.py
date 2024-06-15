@@ -20,6 +20,7 @@ class AuthenticationModule(Module):
     """
     This module is responsible for handling the authentication of the client.
     """
+
     endpoint = "auth"
 
     async def login(
