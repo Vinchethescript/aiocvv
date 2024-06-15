@@ -14,7 +14,9 @@ from ..errors import ClassevivaError
 
 class File:
     """
-    Represents a file to upload to the noticeboard.
+    Represents a file to upload to the noticeboard when joining an item.
+
+    This class is used as an argument for :meth:`~aiocvv.helpers.noticeboard.NoticeboardItem.join`.
     """
 
     def __init__(self, data: IO[Any], filename: str):
@@ -23,7 +25,7 @@ class File:
         self.filename = filename
 
     @property
-    def data(self):
+    def data(self) -> IO[Any]:
         """The file's data."""
         return self.__data
 
@@ -39,8 +41,8 @@ class PartialAttachment:
     Represents an attachment of an uploaded noticeboard item.
 
     .. note::
-        This comes from a _partial_ item, so the attachment is not downloadable.
-        To download the attachment, you must read the item first.
+        This comes from a *partial* item, so the attachment is not downloadable.
+        To download the attachment, you must :func:`~aiocvv.helpers.noticeboard.PartialNoticeboardItem.read` the item first.
     """
 
     def __init__(self, data: dict):
@@ -70,10 +72,10 @@ class Attachment(File, PartialAttachment):
 
 class PartialNoticeboardItem:
     """
-    Represents a item in the noticeboard _partially_.
+    Represents a item in the noticeboard *partially*.
 
     .. note::
-        This class is _partial_, which means it must be :func:`~aiocvv.helpers.noticeboard.PartialNoticeboardItem.read` to get its content.
+        This class is *partial*, which means it must be :func:`~aiocvv.helpers.noticeboard.PartialNoticeboardItem.read` to get its content.
         This is because reading the item would change its read status.
     """
 
@@ -142,7 +144,7 @@ class PartialNoticeboardItem:
 
 class NoticeboardItem(PartialNoticeboardItem):
     """
-    Represents a item in the noticeboard.
+    Represents a item in the noticeboard. See also :class:`~aiocvv.helpers.noticeboard.PartialNoticeboardItem`.
     """
 
     def __init__(self, nb: "MyNoticeboard", payload: dict, content: str):
@@ -155,6 +157,12 @@ class NoticeboardItem(PartialNoticeboardItem):
         return self.__content
 
     async def read(self):
+        """
+        This function doesn't do anything, but exists for compatibility with partial items and to avoid useless requests.
+
+        See also :func:`~aiocvv.helpers.noticeboard.PartialNoticeboardItem.read`.
+        :return: This item.
+        """
         return self
 
     async def join(
@@ -234,8 +242,8 @@ class MyNoticeboard:
         Get a noticeboard item.
 
         .. note::
-            The returned item may be a _partial_, meaning that it doesn't contain its content.
-            This is because you have to read the item to get its content, and that would change the read status of the item.
+            The returned item may be *partial*, meaning that it doesn't contain some data.
+            This is because you have to read the item to get the rest of the data, and that would change the read status of the item.
 
         :param code: The event code of the item.
         :param id: The publication ID of the item.

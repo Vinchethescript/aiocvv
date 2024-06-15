@@ -38,3 +38,6 @@ if __name__ == "__main__":
 ```
 
 A more complex example showing most of what this library can do can be found [here](https://github.com/Vinchethescript/aiocvv/blob/main/example.py).
+
+## Documentation
+The documentation can be found [here](https://aiocvv.readthedocs.io/en/latest/).

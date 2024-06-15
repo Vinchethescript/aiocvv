@@ -12,3 +12,4 @@ and includes descriptions of the classes, methods, and functions in this module.
     modules
     enums
     dataclasses
+    helpers

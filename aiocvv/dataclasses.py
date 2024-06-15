@@ -238,7 +238,7 @@ class Note:
 
     :param id: The ID of the note.
     :param type: The type of the note (annotation, disciplinary, warning and sanction).
-    :param day: The day the note has been created.
+    :param date: The day the note has been created.
     :param text: The text of the note.
     :param read: Whether the note has been read.
     :param author_name: The name of the author of the note.
