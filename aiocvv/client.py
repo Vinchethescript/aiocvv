@@ -24,13 +24,13 @@ from .modules import (
     TeachersModule,
     StudentsModule,
     ParentsModule,
-    AuthenticationModule,
 )
 from . import me
 from .errors import AuthenticationError
 from .me import UserType, Teacher, Student, Parent
 from .types import Response
 from .utils import find_exc
+from ._auth import AuthenticationModule
 
 _json = json
 LoginMethods = Union[Tuple[str, str], Tuple[str, str, str]]
