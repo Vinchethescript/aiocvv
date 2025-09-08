@@ -2,7 +2,6 @@
 This module contains the base classes for the students, parents and teachers modules.
 """
 
-import shelve
 import os
 from abc import ABC
 from types import SimpleNamespace
@@ -10,6 +9,8 @@ from typing import Optional, Mapping, Any, Iterable, Union, IO, TYPE_CHECKING
 from io import BytesIO, StringIO
 from base64 import b64encode
 from urllib.parse import urljoin
+
+from diskcache import Cache
 from aiohttp.client import (
     Fingerprint,
     ClientTimeout,
@@ -216,10 +217,8 @@ class Module(ABC):
 
             self.client: ClassevivaClient = client
 
-    def get_cache(self) -> shelve.Shelf:
-        return shelve.open(
-            self.client._shelf_cache_path  # pylint: disable=protected-access
-        )
+    def get_cache(self) -> Cache:
+        return Cache(self.client._cache_path)  # pylint: disable=protected-access
 
     async def request(
         self,

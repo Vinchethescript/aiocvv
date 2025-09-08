@@ -10,7 +10,7 @@ async def main():
     # Log into the account
     client = await Client(os.getenv("CVV_USERNAME"), os.getenv("CVV_PASSWORD"))
     # Uncomment this to use a specific API instance (e.g. for a specific year like 2024)
-    #client.base_url = "https://web24.spaggiari.eu/rest/v1/"
+    # client.base_url = "https://web24.spaggiari.eu/rest/v1/"
     await client.login()
     begin = date.today() - timedelta(days=7)
     end = date.today()
@@ -26,7 +26,6 @@ async def main():
 
     print(f"Hello, {client.me.name}. ", end="")
 
-    print(await client.me.get_grades())
     if final.end < date.today():
         print("This school year is over! Let's see how you did this year.\n")
         total_grades = 0

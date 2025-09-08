@@ -1,6 +1,5 @@
 """The module where the ClassevivaClient class is located."""
 
-import shelve
 import os
 import asyncio
 import json
@@ -10,6 +9,7 @@ from typing import Optional, Mapping, Any, Iterable, Union, Tuple
 from urllib.parse import urljoin, urlsplit, urlparse
 
 import aiohttp
+from diskcache import Cache
 from appdirs import user_cache_dir
 from typing_extensions import Self
 from aiohttp.client import (
@@ -94,7 +94,7 @@ class ClassevivaClient:
         self.__username = username
         self.__password = password
         self.__identity = identity
-        self._shelf_cache_path = os.path.join(user_cache_dir(), "classeviva")
+        self._cache_path = os.path.join(user_cache_dir(), "aiocvv")
         self.__auth = AuthenticationModule(
             self
         )  # NOTE: keeping this private for obvious reasons
@@ -296,9 +296,7 @@ class ClassevivaClient:
         token = login["token"]
 
         parsed_url = urlparse(endpoint)
-        cache_ = await self.loop.run_in_executor(
-            None, shelve.open, self._shelf_cache_path
-        )
+        cache_ = await self.loop.run_in_executor(None, Cache, self._cache_path)
         if self.base_url not in cache_:
             cache_[self.base_url] = {}
 
