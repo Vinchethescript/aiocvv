@@ -71,15 +71,15 @@ class ClassevivaClient:
     :param identity: Optional. The identity for authentication.
     :param loop: Optional. The event loop to use.
                  If not provided, the default event loop will be used.
+    :param base_url: Optional. The base URL for the Classeviva REST APIs.
+                        Default is `https://web.spaggiari.eu/rest/v1/`.
 
     :type username: str
     :type password: str
     :type identity: str
     :type loop: asyncio.AbstractEventLoop
+    :type base_url: str
     """
-
-    BASE_URL = "https://web.spaggiari.eu/rest/v1/"
-    PARSED_BASE = urlparse(BASE_URL)
 
     def __init__(
         self,
@@ -88,6 +88,7 @@ class ClassevivaClient:
         identity: Optional[str] = None,
         *,
         loop: Optional[asyncio.AbstractEventLoop] = None,
+        base_url: str = "https://web.spaggiari.eu/rest/v1/",
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.__username = username
@@ -101,6 +102,41 @@ class ClassevivaClient:
         self.__students = None
         self.__parents = None
         self.__me = None
+        self._base_url = base_url
+        self.__parsed_base = urlparse(base_url)
+
+    @property
+    def base_url(self) -> str:
+        """
+        The base URL for the Classeviva REST APIs.
+
+        :return: The base URL.
+        """
+        return self._base_url
+
+    @base_url.setter
+    def base_url(self, value: str):
+        """
+        Change the base URL for the Classeviva REST APIs.
+        This can be useful if:
+        * You're trying to fetch data from a past school year;
+        * You're testing against a local or private instance of Classeviva.
+
+        .. note::
+            If you're changing this to get data from a past school year, the
+            base URL will be something like `https://webYY.spaggiari.eu/rest/v1/`,
+            where `YY` is the last two digits of the year.
+            For example, in August 2025, the previous school year was "2024-2025",
+            so the base URL would be `https://web24.spaggiari.eu/rest/v1/`.
+
+
+        :param value: The new base URL.
+        :type value: str
+
+        :rtype: None
+        """
+        self._base_url = value
+        self.__parsed_base = urlparse(value)
 
     #          Modules          #
     # Using properties here so only the needed
@@ -248,11 +284,11 @@ class ClassevivaClient:
         """
         if urlsplit(endpoint).scheme:
             raise ValueError(
-                f"Invalid URL given: The URL provided is not for {self.BASE_URL}."
+                f"Invalid URL given: The URL provided is not for {self.base_url}."
             )
 
-        if not endpoint.startswith(self.BASE_URL):
-            endpoint = urljoin(self.BASE_URL, endpoint.lstrip("/"))
+        if not endpoint.startswith(self.base_url):
+            endpoint = urljoin(self.base_url, endpoint.lstrip("/"))
 
         login = await self.__auth.login(
             self.__username, self.__password, self.__identity
@@ -260,14 +296,19 @@ class ClassevivaClient:
         token = login["token"]
 
         parsed_url = urlparse(endpoint)
-        cache = await self.loop.run_in_executor(
+        cache_ = await self.loop.run_in_executor(
             None, shelve.open, self._shelf_cache_path
         )
+        if self.base_url not in cache_:
+            cache_[self.base_url] = {}
+
+        cache = cache_[self.base_url]
+
         if "requests" not in cache:
             cache["requests"] = {}
 
         reqs_cache = cache["requests"]
-        part = parsed_url.path[len(self.PARSED_BASE.path) :]
+        part = parsed_url.path[len(self.__parsed_base.path) :]
 
         try:
             _headers = {
@@ -356,8 +397,8 @@ class ClassevivaClient:
 
                     return ret
         finally:
-            cache["requests"] = reqs_cache
-            await self.loop.run_in_executor(None, cache.close)
+            cache_[self.base_url] = cache
+            await self.loop.run_in_executor(None, cache_.close)
 
     async def login(self, raise_exceptions: bool = True):
         """

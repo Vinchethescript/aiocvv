@@ -42,75 +42,83 @@ class AuthenticationModule(Module):
         :param identity: The user's identity, in case multiple are found.
         :return: The direct response from the Classeviva API containing the token.
         """
-        with self.get_cache() as cache:
-            if "salt" not in cache:
-                cache["salt"] = bcrypt.gensalt()
+        with self.get_cache() as cache_:
+            if self.client.base_url not in cache_:
+                cache_[self.client.base_url] = {}
 
-            # hash the password to cache it
-            hashed_pw = bcrypt.hashpw(password.encode(), cache["salt"]).decode()
-            if "logins" not in cache:
-                cache["logins"] = {}
+            cache = cache_[self.client.base_url]
 
-            cache_key = f"{username}:{hashed_pw}"
-            login_cache = cache["logins"]
-            if identity:
-                cache_key += f":{identity}"
+            try:
+                if "salt" not in cache:
+                    cache["salt"] = bcrypt.gensalt()
 
-            # check in the cache for the token and its expiration
-            if cache_key in login_cache:
-                this = login_cache[cache_key]
-                expires_at = datetime.fromisoformat(this["expire"])
-                if expires_at > datetime.now(timezone.utc):
-                    return this
+                # hash the password to cache it
+                hashed_pw = bcrypt.hashpw(password.encode(), cache["salt"]).decode()
+                if "logins" not in cache:
+                    cache["logins"] = {}
 
-            req = {"uid": username, "pass": password}
-            if identity:
-                req["ident"] = identity
+                cache_key = f"{username}:{hashed_pw}"
+                login_cache = cache["logins"]
+                if identity:
+                    cache_key += f":{identity}"
 
-            # do the actual request to get the token, if expired or not found
-            async with ClientSession(loop=self.client.loop) as session:
-                async with session.post(
-                    urljoin(self.client.BASE_URL, "auth/login"),
-                    headers={
-                        "User-Agent": CLIENT_USER_AGENT,
-                        "Z-Dev-Apikey": CLIENT_DEV_APIKEY,
-                        "Content-Type": CLIENT_CONTENT_TP,
-                    },
-                    json=req,
-                ) as resp:
-                    content = await resp.json()
-                    if resp.status == 422:
-                        msg = {
-                            "content": content,
-                            "status": resp.status,
-                            "status_reason": resp.reason,
-                        }
-                        raise find_exc(msg, AuthenticationError)
+                # check in the cache for the token and its expiration
+                if cache_key in login_cache:
+                    this = login_cache[cache_key]
+                    expires_at = datetime.fromisoformat(this["expire"])
+                    if expires_at > datetime.now(timezone.utc):
+                        return this
 
-                    if "choices" in content and (
-                        not identity
-                        or identity not in [c["ident"] for c in content["choices"]]
-                    ):
-                        choices = " * " + "\n * ".join(
-                            f"{c['ident']} ({c['name']})" for c in content["choices"]
-                        )
-                        msg = "Multiple identities have been found, but none has been specified"
-                        if identity:
-                            msg = "Could not find the requested identity"
+                req = {"uid": username, "pass": password}
+                if identity:
+                    req["ident"] = identity
 
-                        raise MultiIdentFound(
-                            f"{msg}. Possible choices are:\n{choices}"
-                        )
+                # do the actual request to get the token, if expired or not found
+                async with ClientSession(loop=self.client.loop) as session:
+                    async with session.post(
+                        urljoin(self.client.base_url, "auth/login"),
+                        headers={
+                            "User-Agent": CLIENT_USER_AGENT,
+                            "Z-Dev-Apikey": CLIENT_DEV_APIKEY,
+                            "Content-Type": CLIENT_CONTENT_TP,
+                        },
+                        json=req,
+                    ) as resp:
+                        content = await resp.json()
+                        if resp.status == 422:
+                            msg = {
+                                "content": content,
+                                "status": resp.status,
+                                "status_reason": resp.reason,
+                            }
+                            raise find_exc(msg, AuthenticationError)
 
-                    try:
-                        resp.raise_for_status()
-                    except ClientResponseError as e:
-                        raise AuthenticationError(content) from e
+                        if "choices" in content and (
+                            not identity
+                            or identity not in [c["ident"] for c in content["choices"]]
+                        ):
+                            choices = " * " + "\n * ".join(
+                                f"{c['ident']} ({c['name']})"
+                                for c in content["choices"]
+                            )
+                            msg = "Multiple identities have been found, but none has been specified"
+                            if identity:
+                                msg = "Could not find the requested identity"
 
-                    # cache response, will be re-cached as soon as the token expires
-                    login_cache[cache_key] = content
-                    cache["logins"] = login_cache
-                    return content
+                            raise MultiIdentFound(
+                                f"{msg}. Possible choices are:\n{choices}"
+                            )
+
+                        try:
+                            resp.raise_for_status()
+                        except ClientResponseError as e:
+                            raise AuthenticationError(content) from e
+
+                        # cache response, will be re-cached as soon as the token expires
+                        login_cache[cache_key] = content
+                        return content
+            finally:
+                cache_[self.client.base_url] = cache
 
     async def status(self, token: str) -> dict:
         """
@@ -120,28 +128,34 @@ class AuthenticationModule(Module):
         :param token: The token to check the status of.
         :return: The direct response from the Classeviva API.
         """
-        with self.get_cache() as cache:
-            if "logins_status" not in cache:
-                cache["logins_status"] = {}
+        with self.get_cache() as cache_:
+            if self.client.base_url not in cache_:
+                cache_[self.client.base_url] = {}
 
-            status = cache["logins_status"]
-            if token in status:
-                this = status[token]
-                expires_at = datetime.fromisoformat(this["expire"])
-                if expires_at > datetime.now(timezone.utc):
-                    return this
+            cache = cache_[self.client.base_url]
+            try:
+                if "logins_status" not in cache:
+                    cache["logins_status"] = {}
 
-            async with ClientSession(loop=self.client.loop) as session:
-                async with session.get(
-                    urljoin(self.client.BASE_URL, "auth/status"),
-                    headers={
-                        "User-Agent": CLIENT_USER_AGENT,
-                        "Z-Dev-Apikey": CLIENT_DEV_APIKEY,
-                        "Content-Type": CLIENT_CONTENT_TP,
-                        "Z-Auth-Token": token,
-                    },
-                ) as resp:
-                    resp.raise_for_status()
-                    status[token] = (await resp.json())["status"]
-                    cache["logins_status"] = status
-                    return status[token]
+                status = cache["logins_status"]
+                if token in status:
+                    this = status[token]
+                    expires_at = datetime.fromisoformat(this["expire"])
+                    if expires_at > datetime.now(timezone.utc):
+                        return this
+
+                async with ClientSession(loop=self.client.loop) as session:
+                    async with session.get(
+                        urljoin(self.client.base_url, "auth/status"),
+                        headers={
+                            "User-Agent": CLIENT_USER_AGENT,
+                            "Z-Dev-Apikey": CLIENT_DEV_APIKEY,
+                            "Content-Type": CLIENT_CONTENT_TP,
+                            "Z-Auth-Token": token,
+                        },
+                    ) as resp:
+                        resp.raise_for_status()
+                        status[token] = (await resp.json())["status"]
+                        return status[token]
+            finally:
+                cache_[self.client.base_url] = cache

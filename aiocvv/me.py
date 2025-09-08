@@ -59,7 +59,7 @@ class Me:
             name=self.__card["schName"],
             dedication=self.__card["schDedication"],
             city=self.__card["schCity"],
-            proince=self.__card["schProv"],
+            province=self.__card["schProv"],
             miur_data=MIURData(
                 self.__card["miurSchoolCode"], self.__card["miurDivisionCode"]
             ),

@@ -9,12 +9,24 @@ from aiocvv.dataclasses import Grade, Note
 async def main():
     # Log into the account
     client = await Client(os.getenv("CVV_USERNAME"), os.getenv("CVV_PASSWORD"))
+    # Uncomment this to use a specific API instance (e.g. for a specific year like 2024)
+    #client.base_url = "https://web24.spaggiari.eu/rest/v1/"
+    await client.login()
     begin = date.today() - timedelta(days=7)
     end = date.today()
-    final = [p for p in await client.me.calendar.get_periods() if p.final][-1]
+    try:
+        final = [p for p in await client.me.calendar.get_periods() if p.final][-1]
+    except IndexError:
+        # Maybe we're going through another school year, so take as granted that it's over
+        # NOTE: Considering that no data at all is available for the previous school years
+        #       through the API, this could also be a server-side issue and not related to
+        #       the library working or not. If this gets fixed at Classeviva's end, then we
+        #       can remove this workaround.
+        final = type("Dummy", (object,), {"end": date.today() - timedelta(days=1)})
 
     print(f"Hello, {client.me.name}. ", end="")
 
+    print(await client.me.get_grades())
     if final.end < date.today():
         print("This school year is over! Let's see how you did this year.\n")
         total_grades = 0
@@ -72,7 +84,9 @@ async def main():
             f"In total, you got {total_grades} grades, "
             f"{total_notes} notes and {total_absences} absences."
         )
-        print(f"Your total average grade was {grades_sum / total_grades:.2f}.\n")
+        print(
+            f"Your total average grade was {(grades_sum / total_grades if total_grades else 0):.2f}.\n"
+        )
     else:
 
         print("Showing information for the last 7 days.\n")
