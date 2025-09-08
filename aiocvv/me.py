@@ -137,8 +137,6 @@ class Teacher(Me):
         method to manually make requests to the Classeviva API.
     """
 
-    pass
-
 
 class Student(Me):
     """
@@ -260,5 +258,3 @@ class Parent(Student):
         This class is not meant to be manually constructed, but to be
         used through the :class:`~aiocvv.client.ClassevivaClient` class.
     """
-
-    pass

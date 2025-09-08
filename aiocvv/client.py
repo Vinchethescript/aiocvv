@@ -73,6 +73,10 @@ class ClassevivaClient:
                  If not provided, the default event loop will be used.
     :param base_url: Optional. The base URL for the Classeviva REST APIs.
                         Default is `https://web.spaggiari.eu/rest/v1/`.
+    :param strict_caching: Optional. Whether to strictly use caching.
+                           Setting this to True might introduce some delays in
+                           updates, but will reduce the number of requests made
+                           and will make the client faster.
 
     :type username: str
     :type password: str
@@ -89,6 +93,7 @@ class ClassevivaClient:
         *,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         base_url: str = "https://web.spaggiari.eu/rest/v1/",
+        strict_caching: bool = True,
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.__username = username
@@ -104,21 +109,14 @@ class ClassevivaClient:
         self.__me = None
         self._base_url = base_url
         self.__parsed_base = urlparse(base_url)
+        self.strict_caching = strict_caching
 
     @property
     def base_url(self) -> str:
         """
         The base URL for the Classeviva REST APIs.
 
-        :return: The base URL.
-        """
-        return self._base_url
-
-    @base_url.setter
-    def base_url(self, value: str):
-        """
-        Change the base URL for the Classeviva REST APIs.
-        This can be useful if:
+        You can change this if:
         * You're trying to fetch data from a past school year;
         * You're testing against a local or private instance of Classeviva.
 
@@ -129,12 +127,12 @@ class ClassevivaClient:
             For example, in August 2025, the previous school year was "2024-2025",
             so the base URL would be `https://web24.spaggiari.eu/rest/v1/`.
 
-
-        :param value: The new base URL.
-        :type value: str
-
-        :rtype: None
+        :return: The base URL.
         """
+        return self._base_url
+
+    @base_url.setter
+    def base_url(self, value: str):
         self._base_url = value
         self.__parsed_base = urlparse(value)
 
@@ -366,6 +364,10 @@ class ClassevivaClient:
                     read_bufsize=read_bufsize,
                 ) as resp:
                     if resp.status == 304:
+                        if self.strict_caching:
+                            # keep this cached for longer until it expires again
+                            reqs_cache[part]["created_at"] = datetime.now().timestamp()
+
                         return reqs_cache[part]
 
                     read_data = await resp.content.read()

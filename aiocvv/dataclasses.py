@@ -315,7 +315,7 @@ class Subject:
             self,
             id=self.id,
             description=self.description,
-            teachers=self.teachers if self.teachers > 1 else None,
+            teachers=self.teachers if len(self.teachers) > 1 else None,
         )
 
 

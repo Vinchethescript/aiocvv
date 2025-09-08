@@ -11,7 +11,7 @@ import bcrypt
 
 from aiohttp import ClientSession, ClientResponseError
 from .errors import AuthenticationError, MultiIdentFound
-from .modules.core import Module, Response
+from .modules.core import Module
 from .core import CLIENT_USER_AGENT, CLIENT_DEV_APIKEY, CLIENT_CONTENT_TP
 from .utils import find_exc
 

@@ -275,7 +275,7 @@ class Calendar:
     @staticmethod
     def __filter_check(begin: Date, day: int):
         def chk(d: Day):
-            return d.date == begin + timedelta(days=day)
+            return d.date == (begin + timedelta(days=day)).date()
 
         return chk
 
