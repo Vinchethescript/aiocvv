@@ -10,7 +10,7 @@ from .me import Me
 from .client import ClassevivaClient
 from .client import ClassevivaClient as Client  # pylint: disable=reimported
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "Vinche.zsh"
 __email__ = "vinchethescript@gmail.com"
 __license__ = "GPL-3.0"
